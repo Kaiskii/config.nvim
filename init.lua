@@ -300,10 +300,11 @@ do
       local kind = ev.data.kind
       if kind ~= 'install' and kind ~= 'update' then return end
 
-      if name == 'telescope-fzf-native.nvim' and vim.fn.executable 'make' == 1 then
-        run_build(name, { 'make' }, ev.data.path)
-        return
-      end
+      -- Telescope is currently disabled in SECTION 5.
+      -- if name == 'telescope-fzf-native.nvim' and vim.fn.executable 'make' == 1 then
+      --   run_build(name, { 'make' }, ev.data.path)
+      --   return
+      -- end
 
       if name == 'LuaSnip' then
         if vim.fn.has 'win32' ~= 1 and vim.fn.executable 'make' == 1 then run_build(name, { 'make', 'install_jsregexp' }, ev.data.path) end
@@ -451,8 +452,10 @@ end
 
 -- ============================================================
 -- SECTION 5: SEARCH & NAVIGATION
--- Telescope setup, keymaps, LSP picker mappings
+-- Snacks setup, keymaps, LSP picker mappings
 -- ============================================================
+-- Telescope is preserved below for easy comparison or rollback.
+--[=[
 do
   -- [[ Fuzzy Finder (files, lsp, etc) ]]
   --
@@ -582,6 +585,52 @@ do
 
   -- Shortcut for searching your Neovim configuration files
   vim.keymap.set('n', '<leader>sn', function() builtin.find_files { cwd = vim.fn.stdpath 'config', follow = true } end, { desc = '[S]earch [N]eovim files' })
+end
+--]=]
+
+do
+  -- Snacks provides the fuzzy picker used for search, navigation, LSP results,
+  -- and vim.ui.select() consumers such as winclip.nvim.
+  vim.pack.add { gh 'folke/snacks.nvim' }
+
+  require('snacks').setup {
+    picker = {
+      enabled = true,
+      ui_select = true,
+    },
+  }
+
+  local picker = Snacks.picker
+
+  vim.keymap.set('n', '<leader>sh', picker.help, { desc = '[S]earch [H]elp' })
+  vim.keymap.set('n', '<leader>sk', picker.keymaps, { desc = '[S]earch [K]eymaps' })
+  vim.keymap.set('n', '<leader>sf', picker.files, { desc = '[S]earch [F]iles' })
+  vim.keymap.set('n', '<leader>ss', function() Snacks.picker() end, { desc = '[S]earch [S]elect Picker' })
+  vim.keymap.set({ 'n', 'x' }, '<leader>sw', picker.grep_word, { desc = '[S]earch current [W]ord' })
+  vim.keymap.set('n', '<leader>sg', picker.grep, { desc = '[S]earch by [G]rep' })
+  vim.keymap.set('n', '<leader>sd', picker.diagnostics, { desc = '[S]earch [D]iagnostics' })
+  vim.keymap.set('n', '<leader>sr', picker.resume, { desc = '[S]earch [R]esume' })
+  vim.keymap.set('n', '<leader>s.', picker.recent, { desc = '[S]earch Recent Files ("." for repeat)' })
+  vim.keymap.set('n', '<leader>sc', picker.commands, { desc = '[S]earch [C]ommands' })
+  vim.keymap.set('n', '<leader><leader>', picker.buffers, { desc = '[ ] Find existing buffers' })
+
+  vim.api.nvim_create_autocmd('LspAttach', {
+    group = vim.api.nvim_create_augroup('snacks-lsp-attach', { clear = true }),
+    callback = function(event)
+      local function map(lhs, rhs, desc) vim.keymap.set('n', lhs, rhs, { buffer = event.buf, desc = desc }) end
+
+      map('grr', picker.lsp_references, '[G]oto [R]eferences')
+      map('gri', picker.lsp_implementations, '[G]oto [I]mplementation')
+      map('grd', picker.lsp_definitions, '[G]oto [D]efinition')
+      map('gO', picker.lsp_symbols, 'Open Document Symbols')
+      map('gW', picker.lsp_workspace_symbols, 'Open Workspace Symbols')
+      map('grt', picker.lsp_type_definitions, '[G]oto [T]ype Definition')
+    end,
+  })
+
+  vim.keymap.set('n', '<leader>/', picker.lines, { desc = '[/] Fuzzily search in current buffer' })
+  vim.keymap.set('n', '<leader>s/', picker.grep_buffers, { desc = '[S]earch [/] in Open Buffers' })
+  vim.keymap.set('n', '<leader>sn', function() picker.files { cwd = vim.fn.stdpath 'config' } end, { desc = '[S]earch [N]eovim files' })
 end
 
 -- ============================================================
