@@ -600,6 +600,11 @@ do
     },
   }
 
+  if vim.fn.has 'win32' == 1 then
+    vim.pack.add { gh 'Kaiskii/winclip.nvim' }
+    require('winclip').setup()
+  end
+
   local picker = Snacks.picker
 
   vim.keymap.set('n', '<leader>sh', picker.help, { desc = '[S]earch [H]elp' })
