@@ -372,6 +372,7 @@ do
     spec = {
       { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
       { '<leader>t', group = '[T]oggle' },
+      { '<leader>u', group = '[U]nreal Engine' },
       { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } }, -- Enable gitsigns recommended keymaps first
       { 'gr', group = 'LSP Actions', mode = { 'n' } },
     },
@@ -593,11 +594,37 @@ do
   -- and vim.ui.select() consumers such as winclip.nvim.
   vim.pack.add { gh 'folke/snacks.nvim' }
 
+  -- Neoscroll animates the usual scrolling keys in normal editing windows.
+  vim.pack.add { gh 'karb94/neoscroll.nvim' }
+  local neoscroll = require 'neoscroll'
+  neoscroll.setup {
+    duration_multiplier = 0.4,
+    easing = 'linear',
+  }
+
+  local function scroll_picker_preview(picker, direction)
+    if not picker.preview.win:valid() then return end
+
+    local win = picker.preview.win.win
+    local lines = math.max(1, vim.wo[win].scroll) * direction
+    neoscroll.scroll(lines, {
+      winid = win,
+      move_cursor = false,
+      duration = 250,
+    })
+  end
+
   require('snacks').setup {
     picker = {
       enabled = true,
       ui_select = true,
+      actions = {
+        preview_scroll_down = function(picker) scroll_picker_preview(picker, 1) end,
+        preview_scroll_up = function(picker) scroll_picker_preview(picker, -1) end,
+      },
     },
+    -- Neoscroll owns scrolling, so leave Snacks' animator disabled.
+    scroll = { enabled = false },
   }
 
   if vim.fn.has 'win32' == 1 then
@@ -639,7 +666,52 @@ do
 end
 
 -- ============================================================
--- SECTION 6: LSP
+-- SECTION 6: UNREAL ENGINE
+-- Unreal project discovery, clang compilation database, and builds
+-- ============================================================
+do
+  if vim.fn.has 'win32' == 1 then
+    vim.pack.add { gh 'mbwilding/UnrealEngine.nvim' }
+
+    require('unrealengine').setup {
+      engine_path = 'D:/P4S/Pawlandia',
+      auto_generate = false,
+      auto_build = false,
+      build_type = 'Development',
+      with_editor = true,
+      register_icon = false,
+      register_filetypes = true,
+      close_on_success = false,
+    }
+
+    local unreal = require 'unrealengine.commands'
+    local unreal_helpers = require 'unrealengine.helpers'
+    local unreal_options = require('unrealengine').options
+
+    -- Windows requires Developer Mode or elevation for the plugin's symlinks.
+    -- TopDog instead has a regular .clangd file that reads the database from
+    -- the engine root, so generation only needs to run Unreal Build Tool.
+    local function generate_unreal_lsp()
+      unreal_helpers.execute_build_script({ '-mode=GenerateClangDatabase', '-project=' }, unreal_options, function()
+        vim.schedule(function()
+          vim.notify('Unreal clang database generated', vim.log.levels.INFO)
+          if #vim.lsp.get_clients { name = 'clangd' } > 0 then vim.cmd 'lsp restart clangd' end
+        end)
+      end)
+    end
+
+    local function build_unreal_project()
+      unreal_helpers.execute_build_script(nil, unreal_options, generate_unreal_lsp)
+    end
+
+    vim.keymap.set('n', '<leader>ug', generate_unreal_lsp, { desc = '[U]nreal: [G]enerate LSP files' })
+    vim.keymap.set('n', '<leader>ub', build_unreal_project, { desc = '[U]nreal: [B]uild project' })
+    vim.keymap.set('n', '<leader>uo', unreal.open, { desc = '[U]nreal: [O]pen editor' })
+  end
+end
+
+-- ============================================================
+-- SECTION 7: LSP
 -- LSP keymaps, server configuration, Mason tools installations
 -- ============================================================
 do
@@ -746,16 +818,16 @@ do
   --  See `:help lsp-config` for information about keys and how to configure
   ---@type table<string, vim.lsp.Config>
   local servers = {
-    -- clangd = {},
-    -- gopls = {},
-    -- pyright = {},
-    -- rust_analyzer = {},
+    clangd = {},
+    gopls = {},
+    pyright = {},
+    rust_analyzer = {},
     --
     -- Some languages (like typescript) have entire language plugins that can be useful:
     --    https://github.com/pmizio/typescript-tools.nvim
     --
     -- But for many setups, the LSP (`ts_ls`) will work just fine
-    -- ts_ls = {},
+    ts_ls = {},
 
     stylua = {}, -- Used to format Lua code
 
@@ -825,7 +897,7 @@ do
 end
 
 -- ============================================================
--- SECTION 7: FORMATTING
+-- SECTION 8: FORMATTING
 -- conform.nvim setup and keymap
 -- ============================================================
 do
@@ -863,7 +935,7 @@ do
 end
 
 -- ============================================================
--- SECTION 8: AUTOCOMPLETE & SNIPPETS
+-- SECTION 9: AUTOCOMPLETE & SNIPPETS
 -- blink.cmp and luasnip setup
 -- ============================================================
 do
@@ -906,7 +978,7 @@ do
       -- <c-k>: Toggle signature help
       --
       -- See `:help blink-cmp-config-keymap` for defining your own keymap
-      preset = 'default',
+      preset = 'enter',
 
       -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
       --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
@@ -945,7 +1017,7 @@ do
 end
 
 -- ============================================================
--- SECTION 9: TREESITTER
+-- SECTION 10: TREESITTER
 -- Parser installation, syntax highlighting, folds, indentation
 -- ============================================================
 do
@@ -1007,7 +1079,7 @@ do
 end
 
 -- ============================================================
--- SECTION 10: OPTIONAL EXAMPLES / NEXT STEPS
+-- SECTION 11: OPTIONAL EXAMPLES / NEXT STEPS
 -- kickstart.plugins.* examples
 -- ============================================================
 do
