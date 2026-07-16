@@ -692,12 +692,15 @@ do
     -- TopDog instead has a regular .clangd file that reads the database from
     -- the engine root, so generation only needs to run Unreal Build Tool.
     local function generate_unreal_lsp()
+      local output_window
       unreal_helpers.execute_build_script({ '-mode=GenerateClangDatabase', '-project=' }, unreal_options, function()
         vim.schedule(function()
           vim.notify('Unreal clang database generated', vim.log.levels.INFO)
           if #vim.lsp.get_clients { name = 'clangd' } > 0 then vim.cmd 'lsp restart clangd' end
+          if output_window and vim.api.nvim_win_is_valid(output_window) then vim.api.nvim_set_current_win(output_window) end
         end)
       end)
+      output_window = vim.api.nvim_get_current_win()
     end
 
     local function build_unreal_project()
