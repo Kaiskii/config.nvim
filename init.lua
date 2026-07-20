@@ -1110,3 +1110,36 @@ end
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+do
+  vim.pack.add { gh 'selimacerbas/live-server.nvim' }
+
+  require("live_server").setup({
+    default_port = 8000,
+    live_reload = { enabled = true, inject_script = true, debounce = 120, css_inject = true },
+    directory_listing = { enabled = true, show_hidden = false },
+  })
+
+  vim.pack.add { gh 'selimacerbas/markdown-preview.nvim' }
+
+  local markdown_preview_active = false
+
+  require("markdown_preview").setup({
+      instance_mode = "takeover",  -- "takeover" (one tab) or "multi" (tab per instance)
+      port = 0,                    -- 0 = auto (8421 for takeover, OS-assigned for multi)
+      open_browser = true,
+      default_theme = "dark",      -- "dark" or "light"; initial preview theme
+      debounce_ms = 300,
+      hooks = {
+        on_start = function() markdown_preview_active = true end,
+        on_stop = function() markdown_preview_active = false end,
+      },
+    })
+
+  vim.keymap.set('n', '<C-k>v', function()
+    if markdown_preview_active then
+      vim.cmd.MarkdownPreviewStop()
+    else
+      vim.cmd.MarkdownPreview()
+    end
+  end, { desc = 'Toggle Markdown preview' })
+end
